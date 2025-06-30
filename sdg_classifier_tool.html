@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDG Publication Classifier</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .upload-section {
+            background: #f8fafc;
+            border: 2px dashed #cbd5e0;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .upload-section.dragover {
+            border-color: #667eea;
+            background: #e6f3ff;
+            transform: scale(1.02);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e6fffa;
+            border-radius: 10px;
+            border-left: 4px solid #38b2ac;
+        }
+
+        .progress-section {
+            display: none;
+            margin: 30px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .results-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .download-btn {
+            background: #38a169;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .download-btn:hover {
+            background: #2f855a;
+            transform: translateY(-1px);
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .results-table th {
+            background: #f7fafc;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #2d3748;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .results-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+
+        .results-table tr:hover {
+            background: #f8fafc;
+        }
+
+        .sdg-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin: 2px;
+        }
+
+        .confidence-bar {
+            width: 100px;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f56565, #f6ad55, #68d391);
+            border-radius: 3px;
+        }
+
+        .sdg-info {
+            background: #f0f4ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .sdg-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .sdg-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            font-size: 0.9rem;
+        }
+
+        .error-message {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #e53e3e;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        /* Mode Selection Styles */
+        .mode-selection {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            background: #f8fafc;
+            border-radius: 50px;
+            padding: 5px;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: transparent;
+            color: #666;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .mode-btn:hover:not(.active) {
+            color: #667eea;
+        }
+
+        /* Single Publication Form Styles */
+        .single-mode {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .form-section {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .input-group input,
+        .input-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+            background: white;
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .classify-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .classify-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .classify-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Single Result Styles */
+        .single-result {
+            margin-top: 30px;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #667eea;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .result-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .result-confidence {
+            text-align: right;
+        }
+
+        .confidence-score {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .confidence-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .sdg-assignments {
+            margin: 20px 0;
+        }
+
+        .sdg-assignments h5 {
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+
+        .sdg-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .sdg-item-large {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-weight: 500;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.2);
+        }
+
+        .reasoning-section {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .reasoning-section h5 {
+            margin-bottom: 8px;
+            color: #2d3748;
+        }
+
+        .reasoning-text {
+            color: #666;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>SDG Publication Classifier</h1>
+            <p>Automatically classify your publications according to the 17 Sustainable Development Goals based on title, keywords, abstract, and subject</p>
+        </div>
+
+        <div class="sdg-info">
+            <h3>Supported SDG Categories:</h3>
+            <div class="sdg-grid">
+                <div class="sdg-item"><strong>SDG 1:</strong> No Poverty</div>
+                <div class="sdg-item"><strong>SDG 2:</strong> Zero Hunger</div>
+                <div class="sdg-item"><strong>SDG 3:</strong> Good Health and Well-being</div>
+                <div class="sdg-item"><strong>SDG 4:</strong> Quality Education</div>
+                <div class="sdg-item"><strong>SDG 5:</strong> Gender Equality</div>
+                <div class="sdg-item"><strong>SDG 6:</strong> Clean Water and Sanitation</div>
+                <div class="sdg-item"><strong>SDG 7:</strong> Affordable and Clean Energy</div>
+                <div class="sdg-item"><strong>SDG 8:</strong> Decent Work and Economic Growth</div>
+                <div class="sdg-item"><strong>SDG 9:</strong> Industry, Innovation and Infrastructure</div>
+                <div class="sdg-item"><strong>SDG 10:</strong> Reduced Inequalities</div>
+                <div class="sdg-item"><strong>SDG 11:</strong> Sustainable Cities and Communities</div>
+                <div class="sdg-item"><strong>SDG 12:</strong> Responsible Consumption and Production</div>
+                <div class="sdg-item"><strong>SDG 13:</strong> Climate Action</div>
+                <div class="sdg-item"><strong>SDG 14:</strong> Life Below Water</div>
+                <div class="sdg-item"><strong>SDG 15:</strong> Life on Land</div>
+                <div class="sdg-item"><strong>SDG 16:</strong> Peace, Justice and Strong Institutions</div>
+                <div class="sdg-item"><strong>SDG 17:</strong> Partnerships for the Goals</div>
+            </div>
+        </div>
+
+        <!-- Mode Selection -->
+        <div class="mode-selection">
+            <button class="mode-btn active" id="singleModeBtn" onclick="switchMode('single')">
+                Single Publication
+            </button>
+            <button class="mode-btn" id="batchModeBtn" onclick="switchMode('batch')">
+                Batch Upload
+            </button>
+        </div>
+
+        <!-- Single Publication Mode -->
+        <div class="single-mode" id="singleMode">
+            <h3>Classify Single Publication</h3>
+            <div class="form-section">
+                <div class="input-group">
+                    <label for="titleInput">Title</label>
+                    <input type="text" id="titleInput" placeholder="Enter publication title">
+                </div>
+                <div class="input-group">
+                    <label for="keywordsInput">Keywords</label>
+                    <input type="text" id="keywordsInput" placeholder="Enter keywords (comma-separated)">
+                </div>
+                <div class="input-group">
+                    <label for="abstractInput">Abstract</label>
+                    <textarea id="abstractInput" rows="6" placeholder="Enter publication abstract or summary"></textarea>
+                </div>
+                <div class="input-group">
+                    <label for="subjectInput">Subject Area</label>
+                    <input type="text" id="subjectInput" placeholder="Enter subject area or field of study">
+                </div>
+                <button class="classify-btn" onclick="classifySinglePublication()">
+                    <span class="loading" id="singleLoading" style="display: none;"></span>
+                    Classify Publication
+                </button>
+            </div>
+            
+            <div class="single-result" id="singleResult" style="display: none;">
+                <h4>Classification Result</h4>
+                <div class="result-card" id="singleResultCard"></div>
+            </div>
+        </div>
+
+        <!-- Batch Upload Mode -->
+        <div class="upload-section" id="uploadSection" style="display: none;">
+            <h3>Upload Your Publications Spreadsheet</h3>
+            <p>Drag and drop your Excel (.xlsx) or CSV file here, or click to browse</p>
+            <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls,.csv">
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                Choose File
+            </button>
+            <div id="fileInfo" class="file-info" style="display: none;"></div>
+        </div>
+
+        <div class="progress-section" id="progressSection">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">Processing publications...</div>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="results-header">
+                <h3>Classification Results</h3>
+                <button class="download-btn" id="downloadBtn">Download Results</button>
+            </div>
+            <div class="stats" id="statsSection"></div>
+            <div style="max-height: 600px; overflow-y: auto;">
+                <table class="results-table" id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Assigned SDGs</th>
+                            <th>Confidence</th>
+                            <th>Reasoning</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+    </div>
+
+    <script>
+        // SDG Keywords and patterns for classification
+        const SDG_KEYWORDS = {
+            1: ['poverty', 'poor', 'income', 'economic vulnerability', 'social protection', 'basic needs', 'livelihood', 'financial inclusion'],
+            2: ['hunger', 'food security', 'nutrition', 'agriculture', 'farming', 'crop', 'livestock', 'malnutrition', 'sustainable agriculture'],
+            3: ['health', 'healthcare', 'medical', 'disease', 'mortality', 'wellbeing', 'mental health', 'epidemic', 'pharmaceutical', 'medicine'],
+            4: ['education', 'learning', 'school', 'literacy', 'knowledge', 'skills', 'teaching', 'university', 'training', 'educational'],
+            5: ['gender', 'women', 'equality', 'discrimination', 'empowerment', 'female', 'maternal', 'violence against women'],
+            6: ['water', 'sanitation', 'hygiene', 'wastewater', 'water quality', 'water management', 'clean water', 'water access'],
+            7: ['energy', 'renewable', 'electricity', 'power', 'solar', 'wind', 'clean energy', 'energy efficiency', 'sustainable energy'],
+            8: ['employment', 'work', 'economic growth', 'productivity', 'labor', 'decent work', 'unemployment', 'entrepreneurship'],
+            9: ['innovation', 'infrastructure', 'technology', 'industry', 'manufacturing', 'research', 'development', 'digitalization'],
+            10: ['inequality', 'inclusion', 'discrimination', 'migration', 'refugees', 'social inclusion', 'equal opportunity'],
+            11: ['cities', 'urban', 'sustainable cities', 'transportation', 'housing', 'urban planning', 'smart cities', 'urbanization'],
+            12: ['consumption', 'production', 'waste', 'recycling', 'circular economy', 'sustainable consumption', 'resource efficiency'],
+            13: ['climate', 'carbon', 'greenhouse gas', 'emissions', 'climate change', 'global warming', 'adaptation', 'mitigation'],
+            14: ['ocean', 'marine', 'sea', 'fish', 'aquatic', 'coastal', 'maritime', 'marine ecosystem', 'ocean acidification'],
+            15: ['biodiversity', 'forest', 'ecosystem', 'wildlife', 'conservation', 'land degradation', 'deforestation', 'species'],
+            16: ['peace', 'justice', 'governance', 'institutions', 'rule of law', 'corruption', 'transparency', 'human rights'],
+            17: ['partnership', 'cooperation', 'global', 'international', 'collaboration', 'development cooperation', 'capacity building']
+        };
+
+        const SDG_NAMES = {
+            1: 'No Poverty',
+            2: 'Zero Hunger', 
+            3: 'Good Health and Well-being',
+            4: 'Quality Education',
+            5: 'Gender Equality',
+            6: 'Clean Water and Sanitation',
+            7: 'Affordable and Clean Energy',
+            8: 'Decent Work and Economic Growth',
+            9: 'Industry, Innovation and Infrastructure',
+            10: 'Reduced Inequalities',
+            11: 'Sustainable Cities and Communities',
+            12: 'Responsible Consumption and Production',
+            13: 'Climate Action',
+            14: 'Life Below Water',
+            15: 'Life on Land',
+            16: 'Peace, Justice and Strong Institutions',
+            17: 'Partnerships for the Goals'
+        };
+
+        let processedData = [];
+        let currentMode = 'single';
+
+        // Mode switching functionality
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // Update button states
+            document.getElementById('singleModeBtn').classList.toggle('active', mode === 'single');
+            document.getElementById('batchModeBtn').classList.toggle('active', mode === 'batch');
+            
+            // Show/hide sections
+            document.getElementById('singleMode').style.display = mode === 'single' ? 'block' : 'none';
+            document.getElementById('uploadSection').style.display = mode === 'batch' ? 'block' : 'none';
+            
+            // Hide results when switching modes
+            document.getElementById('singleResult').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+        }
+
+        // Single publication classification
+        function classifySinglePublication() {
+            const title = document.getElementById('titleInput').value.trim();
+            const keywords = document.getElementById('keywordsInput').value.trim();
+            const abstract = document.getElementById('abstractInput').value.trim();
+            const subject = document.getElementById('subjectInput').value.trim();
+            
+            // Check if at least one field is filled
+            if (!title && !keywords && !abstract && !subject) {
+                showError('Please fill in at least one field to classify the publication.');
+                return;
+            }
+            
+            // Show loading state
+            const loadingElement = document.getElementById('singleLoading');
+            const classifyBtn = document.querySelector('.classify-btn');
+            loadingElement.style.display = 'inline-block';
+            classifyBtn.disabled = true;
+            
+            // Simulate processing delay for better UX
+            setTimeout(() => {
+                const result = classifyPublication(title, keywords, abstract, subject);
+                displaySingleResult(title, keywords, abstract, subject, result);
+                
+                // Hide loading state
+                loadingElement.style.display = 'none';
+                classifyBtn.disabled = false;
+            }, 1000);
+        }
+
+        function displaySingleResult(title, keywords, abstract, subject, result) {
+            const resultSection = document.getElementById('singleResult');
+            const resultCard = document.getElementById('singleResultCard');
+            
+            const sdgItems = result.assignedSDGs.map(sdg => 
+                `<div class="sdg-item-large">SDG ${sdg}: ${SDG_NAMES[sdg]}</div>`
+            ).join('');
+            
+            const confidenceColor = result.confidence >= 70 ? '#38a169' : 
+                                   result.confidence >= 40 ? '#f6ad55' : '#f56565';
+            
+            resultCard.innerHTML = `
+                <div class="result-header">
+                    <div>
+                        <div class="result-title">${title || 'Publication Classification'}</div>
+                        <div style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">
+                            ${[title, keywords, abstract, subject].filter(f => f).length} field(s) analyzed
+                        </div>
+                    </div>
+                    <div class="result-confidence">
+                        <div class="confidence-score" style="color: ${confidenceColor};">${Math.round(result.confidence)}%</div>
+                        <div class="confidence-label">Confidence</div>
+                    </div>
+                </div>
+                
+                <div class="sdg-assignments">
+                    <h5>Assigned SDG Categories:</h5>
+                    <div class="sdg-list">
+                        ${sdgItems || '<div style="color: #666; font-style: italic;">No SDG categories assigned</div>'}
+                    </div>
+                </div>
+                
+                <div class="reasoning-section">
+                    <h5>Classification Reasoning:</h5>
+                    <div class="reasoning-text">${result.reasoning}</div>
+                </div>
+                
+                ${result.assignedSDGs.length > 0 ? `
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                    <h5 style="margin-bottom: 10px;">Detailed Scores:</h5>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                        ${result.assignedSDGs.map(sdg => `
+                            <div style="background: #f0f4ff; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem;">
+                                <strong>SDG ${sdg}:</strong> ${result.scores[sdg]} matches
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            `;
+            
+            resultSection.style.display = 'block';
+            resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Clear single publication form
+        function clearSingleForm() {
+            document.getElementById('titleInput').value = '';
+            document.getElementById('keywordsInput').value = '';
+            document.getElementById('abstractInput').value = '';
+            document.getElementById('subjectInput').value = '';
+            document.getElementById('singleResult').style.display = 'none';
+        }
+
+        // File upload handling
+        const fileInput = document.getElementById('fileInput');
+        const uploadSection = document.getElementById('uploadSection');
+        const fileInfo = document.getElementById('fileInfo');
+
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // Drag and drop functionality
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            const allowedTypes = ['.xlsx', '.xls', '.csv'];
+            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+            
+            if (!allowedTypes.includes(fileExtension)) {
+                showError('Please upload a valid Excel (.xlsx, .xls) or CSV file.');
+                return;
+            }
+
+            fileInfo.innerHTML = `
+                <strong>Selected File:</strong> ${file.name}<br>
+                <strong>Size:</strong> ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                <strong>Type:</strong> ${file.type || 'Unknown'}
+            `;
+            fileInfo.style.display = 'block';
+
+            // Process the file
+            processFile(file);
+        }
+
+        function processFile(file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    let data;
+                    
+                    if (file.name.toLowerCase().endsWith('.csv')) {
+                        // Parse CSV
+                        data = parseCSV(e.target.result);
+                    } else {
+                        // Parse Excel
+                        const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    }
+                    
+                    if (data.length < 2) {
+                        showError('The file appears to be empty or contains only headers.');
+                        return;
+                    }
+                    
+                    processPublications(data);
+                } catch (error) {
+                    showError('Error reading file: ' + error.message);
+                }
+            };
+            
+            if (file.name.toLowerCase().endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsBinaryString(file);
+            }
+        }
+
+        function parseCSV(text) {
+            const lines = text.split('\n');
+            return lines.map(line => {
+                const result = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        result.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                
+                result.push(current.trim());
+                return result;
+            });
+        }
+
+        function processPublications(data) {
+            if (data.length === 0) return;
+            
+            showProgress();
+            
+            const headers = data[0].map(h => h.toLowerCase().trim());
+            const publications = data.slice(1);
+            
+            // Find relevant columns
+            const titleCol = findColumn(headers, ['title', 'publication title', 'name']);
+            const keywordsCol = findColumn(headers, ['keywords', 'keyword', 'tags']);
+            const abstractCol = findColumn(headers, ['abstract', 'summary', 'description']);
+            const subjectCol = findColumn(headers, ['subject', 'topic', 'category', 'field']);
+            
+            processedData = [];
+            
+            publications.forEach((pub, index) => {
+                updateProgress((index / publications.length) * 100);
+                
+                const title = pub[titleCol] || '';
+                const keywords = pub[keywordsCol] || '';
+                const abstract = pub[abstractCol] || '';
+                const subject = pub[subjectCol] || '';
+                
+                const result = classifyPublication(title, keywords, abstract, subject);
+                
+                processedData.push({
+                    originalData: pub,
+                    title: title,
+                    keywords: keywords,
+                    abstract: abstract,
+                    subject: subject,
+                    ...result
+                });
+            });
+            
+            hideProgress();
+            showResults();
+        }
+
+        function findColumn(headers, possibleNames) {
+            for (let name of possibleNames) {
+                const index = headers.findIndex(h => h.includes(name));
+                if (index !== -1) return index;
+            }
+            return -1;
+        }
+
+        function classifyPublication(title, keywords, abstract, subject) {
+            const text = [title, keywords, abstract, subject].join(' ').toLowerCase();
+            const scores = {};
+            const matchedKeywords = {};
+            
+            // Calculate scores for each SDG
+            for (let sdg = 1; sdg <= 17; sdg++) {
+                scores[sdg] = 0;
+                matchedKeywords[sdg] = [];
+                
+                SDG_KEYWORDS[sdg].forEach(keyword => {
+                    const regex = new RegExp('\\b' + keyword + '\\b', 'gi');
+                    const matches = text.match(regex);
+                    if (matches) {
+                        scores[sdg] += matches.length;
+                        matchedKeywords[sdg].push(keyword);
+                    }
+                });
+            }
+            
+            // Find top SDGs
+            const sortedSDGs = Object.keys(scores)
+                .map(sdg => ({ sdg: parseInt(sdg), score: scores[sdg] }))
+                .filter(item => item.score > 0)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 3); // Top 3 SDGs
+            
+            const assignedSDGs = sortedSDGs.map(item => item.sdg);
+            const confidence = sortedSDGs.length > 0 ? Math.min(sortedSDGs[0].score * 20, 100) : 0;
+            
+            // Generate reasoning
+            let reasoning = 'No clear SDG alignment found.';
+            if (sortedSDGs.length > 0) {
+                const topSDG = sortedSDGs[0];
+                const keywords = matchedKeywords[topSDG.sdg].slice(0, 3).join(', ');
+                reasoning = `Matched keywords: ${keywords}`;
+            }
+            
+            return {
+                assignedSDGs,
+                confidence,
+                reasoning,
+                scores
+            };
+        }
+
+        function showProgress() {
+            document.getElementById('progressSection').style.display = 'block';
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').textContent = `Processing publications... ${Math.round(percent)}%`;
+        }
+
+        function hideProgress() {
+            document.getElementById('progressSection').style.display = 'none';
+        }
+
+        function showResults() {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsBody = document.getElementById('resultsBody');
+            const statsSection = document.getElementById('statsSection');
+            
+            // Generate statistics
+            const totalPublications = processedData.length;
+            const classifiedPublications = processedData.filter(p => p.assignedSDGs.length > 0).length;
+            const avgConfidence = processedData.reduce((sum, p) => sum + p.confidence, 0) / totalPublications;
+            
+            const sdgCounts = {};
+            processedData.forEach(p => {
+                p.assignedSDGs.forEach(sdg => {
+                    sdgCounts[sdg] = (sdgCounts[sdg] || 0) + 1;
+                });
+            });
+            
+            const mostCommonSDG = Object.keys(sdgCounts).length > 0 ? 
+                Object.keys(sdgCounts).reduce((a, b) => sdgCounts[a] > sdgCounts[b] ? a : b) : '1';
+            
+            statsSection.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${totalPublications}</div>
+                    <div class="stat-label">Total Publications</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${classifiedPublications}</div>
+                    <div class="stat-label">Successfully Classified</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${Math.round(avgConfidence)}%</div>
+                    <div class="stat-label">Average Confidence</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">SDG ${mostCommonSDG}</div>
+                    <div class="stat-label">Most Common SDG</div>
+                </div>
+            `;
+            
+            // Generate results table
+            resultsBody.innerHTML = '';
+            processedData.forEach(pub => {
+                const row = document.createElement('tr');
+                
+                const sdgTags = pub.assignedSDGs.map(sdg => 
+                    `<span class="sdg-tag">SDG ${sdg}: ${SDG_NAMES[sdg]}</span>`
+                ).join('');
+                
+                row.innerHTML = `
+                    <td style="max-width: 300px;">${pub.title || 'No title'}</td>
+                    <td>${sdgTags || 'No SDG assigned'}</td>
+                    <td>
+                        ${Math.round(pub.confidence)}%
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" style="width: ${pub.confidence}%"></div>
+                        </div>
+                    </td>
+                    <td style="max-width: 200px; font-size: 0.9em;">${pub.reasoning}</td>
+                `;
+                
+                resultsBody.appendChild(row);
+            });
+            
+            resultsSection.style.display = 'block';
+            
+            // Setup download functionality
+            document.getElementById('downloadBtn').onclick = downloadResults;
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial mode
+            switchMode('single');
+            
+            // Add some example text for demonstration
+            setTimeout(() => {
+                if (currentMode === 'single') {
+                    // You can uncomment these lines to show example data
+                    // document.getElementById('titleInput').value = 'Renewable Energy Solutions for Rural Communities';
+                    // document.getElementById('keywordsInput').value = 'solar power, renewable energy, rural development, sustainability';
+                    // document.getElementById('abstractInput').value = 'This study examines the implementation of solar energy systems in rural communities...';
+                }
+            }, 500);
+        });
+
+        function downloadResults() {
+            // Prepare data for download
+            const headers = ['Title', 'Keywords', 'Abstract', 'Subject', 'Assigned SDGs', 'SDG Names', 'Confidence (%)', 'Reasoning'];
+            const rows = [headers];
+            
+            processedData.forEach(pub => {
+                const sdgNumbers = pub.assignedSDGs.join(', ');
+                const sdgNames = pub.assignedSDGs.map(sdg => SDG_NAMES[sdg]).join(', ');
+                
+                rows.push([
+                    pub.title || '',
+                    pub.keywords || '',
+                    pub.abstract || '',
+                    pub.subject || '',
+                    sdgNumbers,
+                    sdgNames,
+                    Math.round(pub.confidence),
+                    pub.reasoning
+                ]);
+            });
+            
+            // Create workbook and download
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            
+            // Auto-size columns
+            const colWidths = [];
+            rows[0].forEach((_, i) => {
+                const maxLength = Math.max(...rows.map(row => String(row[i] || '').length));
+                colWidths.push({ width: Math.min(maxLength + 2, 50) });
+            });
+            ws['!cols'] = colWidths;
+            
+            XLSX.utils.book_append_sheet(wb, ws, 'SDG Classifications');
+            XLSX.writeFile(wb, 'SDG_Classifications_Results.xlsx');
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
